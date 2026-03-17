@@ -290,3 +290,162 @@ This project is open source and available under the [MIT License](LICENSE).
 <p align="center">
   Made with ❤️ for students navigating their career paths
 </p>
+
+---
+
+## 📋 Project Methodology
+
+### 1. Introduction & Problem Statement
+
+**Problem:** Students who have just passed their 10th or 12th standard face a critical decision about their career path but often lack personalised, data-driven guidance.
+
+**Solution:** An AI-powered web application that takes a student's academic scores, skills, and interests as input and uses Machine Learning to predict the top 3 suitable career domains — along with a personalised step-by-step roadmap.
+
+---
+
+### 2. Development Methodology
+
+The project follows a **modified Agile/Iterative** approach split into clearly defined phases:
+
+#### Phase 1 — Requirement Analysis & Data Modelling
+| Activity | Output |
+|---|---|
+| Identify target audience (10th/12th pass students) | User persona document |
+| Map 12 career domains with score ranges, skills, and interests | `career_data.py` — `CAREER_PROFILES` dictionary |
+| Define input features (4 scores + 15 skills + 15 interests = 34 features) | Feature schema |
+| Design career roadmaps for each domain (after 10th & after 12th) | `CAREER_ROADMAPS` dictionary |
+
+#### Phase 2 — Machine Learning Model Development
+| Activity | Output |
+|---|---|
+| Generate synthetic training data (2,400 samples) using CAREER_PROFILES | `generate_training_data()` in `career_data.py` |
+| Train Random Forest (150 estimators, max_depth=15) | Trained RF model in `ml_model.py` |
+| Train XGBoost (150 estimators, max_depth=8, lr=0.1) | Trained XGB model in `ml_model.py` |
+| Build weighted ensemble (RF 45% + XGBoost 55%) | `CareerPredictor.predict()` method |
+| Validate training accuracy | Accuracy printed on startup |
+
+#### Phase 3 — Backend API Development (Flask)
+| Activity | Output |
+|---|---|
+| Create Flask app with CORS support | `app.py` — `create_app()` |
+| Implement JWT-based auth (register/login) | `routes/auth.py` |
+| Build prediction endpoint | `routes/predict.py` — `POST /api/predict` |
+| Build roadmap generation endpoint | `routes/roadmap.py` — `GET /api/roadmap/<career>` |
+| Add utility endpoints (health, options, careers) | Various routes |
+
+#### Phase 4 — Frontend Development (React + Vite)
+| Activity | Output |
+|---|---|
+| Design dark-themed design system (CSS variables, glassmorphism) | `index.css` — 22 KB design system |
+| Build responsive Navbar with auth awareness | `Navbar.jsx` |
+| Build Landing page with hero section & features | `Landing.jsx` |
+| Build Auth page (login/register toggle) | `Auth.jsx` |
+| Build Profile page (sliders for scores, tag-select for skills/interests) | `Profile.jsx` |
+| Build Dashboard (top 3 predictions with confidence bars) | `Dashboard.jsx` |
+| Build Roadmap page (animated timeline) | `Roadmap.jsx` |
+| Wire up API client | `api.js` |
+
+#### Phase 5 — Integration & Testing
+| Activity | Output |
+|---|---|
+| Connect frontend → backend via REST API | `api.js` baseURL → `localhost:5000` |
+| End-to-end flow testing (register → login → profile → predict → roadmap) | Manual test script in README |
+| API endpoint testing with `curl` | Test commands documented |
+
+---
+
+### 3. Technology Stack Justification
+
+| Layer | Choice | Rationale |
+|---|---|---|
+| **ML — Random Forest** | scikit-learn | Robust, interpretable, handles tabular data well |
+| **ML — XGBoost** | xgboost | Best-in-class gradient boosting for structured data |
+| **Ensemble Strategy** | Weighted average (45/55) | Combines RF's stability with XGBoost's precision |
+| **Backend** | Flask | Lightweight, Pythonic, easy ML integration |
+| **Auth** | PyJWT | Stateless token-based auth, no DB dependency |
+| **Frontend** | React 19 + Vite | Fast dev server, modern JSX, component reusability |
+| **Styling** | Vanilla CSS | Full control, no framework overhead, premium dark theme |
+| **Routing** | React Router | SPA navigation, auth-protected routes |
+
+---
+
+### 4. Data Flow — Complete User Journey
+
+```
+Student                    React Frontend              Flask Backend               ML Ensemble
+  │                              │                           │                          │
+  ├── Register ────────────────► POST /api/register ────────►│                          │
+  │◄──────────── JWT Token ◄──── JWT Token ◄────────────────┤                          │
+  │                              │                           │                          │
+  ├── Input Scores/Skills ─────► POST /api/predict ─────────► prepare_features()        │
+  │                              │                           ├── 34-dim vector ────────►│
+  │                              │                           │   RF predict_proba       │
+  │                              │                           │   XGB predict_proba      │
+  │                              │                           │◄── Ensemble (0.45*RF     │
+  │                              │                           │     + 0.55*XGB)  ◄───────┤
+  │◄──── Dashboard (3 cards) ◄── Top 3 careers + confidence◄┤                          │
+  │                              │                           │                          │
+  ├── Click "View Roadmap" ────► GET /api/roadmap/<career> ─►│                          │
+  │◄──── Animated Timeline  ◄─── Roadmap phases, skills ◄───┤                          │
+```
+
+---
+
+### 5. ML Model Methodology
+
+#### 5.1 Synthetic Data Generation
+
+Since real student-career outcome data is not available, the system generates **2,400 synthetic training samples** (200 per career domain) using the curated `CAREER_PROFILES`:
+
+- **Score features** (4): Gaussian distribution centred on each career's ideal range (e.g., Software Engineering → math 75–100, logical 80–100)
+- **Skill features** (15): Binary flags, 75% probability if the skill is associated with the career, 15% otherwise
+- **Interest features** (15): Binary flags, 75% probability if associated, 12% otherwise
+
+#### 5.2 Model Training
+
+| Model | Hyperparameters |
+|---|---|
+| **Random Forest** | `n_estimators=150`, `max_depth=15`, `min_samples_split=5`, `min_samples_leaf=2` |
+| **XGBoost** | `n_estimators=150`, `max_depth=8`, `learning_rate=0.1`, `subsample=0.8`, `colsample_bytree=0.8` |
+
+#### 5.3 Ensemble Prediction
+```
+ensemble_probabilities = 0.45 × RF_probabilities + 0.55 × XGB_probabilities
+```
+Top 3 indices are extracted via `argsort()`, inverse-label-transformed to career names, and returned with confidence percentages.
+
+---
+
+### 6. Frontend Page Architecture
+
+| Page | Route | Purpose |
+|---|---|---|
+| **Landing** | `/` | Hero section, feature highlights, CTA |
+| **Auth** | `/auth` | Login/Register form with toggle |
+| **Profile** | `/profile` | Score sliders, skill/interest tag selection → submit |
+| **Dashboard** | `/dashboard` | Top 3 career prediction cards with confidence bars |
+| **Roadmap** | `/roadmap/:career` | Step-by-step animated career roadmap timeline |
+
+---
+
+### 7. Testing Strategy
+
+| Test Type | Method | Scope |
+|---|---|---|
+| **API Smoke Test** | `curl http://localhost:5000/api/health` | Backend is running, model trained |
+| **Registration Test** | `curl POST /api/register` with JSON body | User creation + JWT return |
+| **Prediction Test** | `curl POST /api/predict` with sample data | ML pipeline end-to-end |
+| **Full Flow (Manual)** | Browser walk-through: register → profile → predict → roadmap | Complete user journey |
+
+---
+
+### 8. Future Enhancements
+
+| Enhancement | Description |
+|---|---|
+| **Real Dataset** | Replace synthetic data with real student-career outcome data |
+| **Database** | Add SQLite / PostgreSQL for persistent user storage |
+| **Model Persistence** | Save/load trained models with `joblib` instead of retraining on every startup |
+| **More Careers** | Expand from 12 to 20+ career domains |
+| **Feedback Loop** | Let users rate predictions to improve model accuracy over time |
+| **Deployment** | Deploy backend on Render/Railway, frontend on Vercel/Netlify |
